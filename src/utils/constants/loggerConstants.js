@@ -1,0 +1,9 @@
+const LOGGER = Object.freeze({
+  ADMIN: 'ADMIN_LOGGER',
+  APP: 'APP_LOGGER',
+  AUDIT: 'AUDIT_LOGGER',
+  SYSTEM: 'SYSTEM_LOGGER',
+  CONSUMER: 'CONSUMER_LOGGER',
+});
+
+module.exports = LOGGER;

@@ -1,0 +1,100 @@
+const {
+  apiFailResponse,
+  apiSuccessResponse,
+} = require('../../../utils/commonUtil');
+const HTTP_STATUS = require('../../../utils/constants/httpStatus');
+
+const { appLogger: logger } = require('../../../utils/commonUtils/logger');
+
+const service = require('./appStoreEmployeeRating.service');
+
+const moduleName = 'Employees Rating';
+
+const employeeRatingList = async (req, res) => {
+  logger.verbose(`Handling ${req.method} ${req.url} Route`);
+  try {
+    const data = await service.getAppointmentsRatings({
+      ...(req.params || {}),
+      ...(req.query || {}),
+      ...(req.session || {}),
+    });
+    if (data && !data.hasError) {
+      logger.verbose(
+        `Handling Completed With Success On ${req.method} ${req.url} Route`
+      );
+      return res
+        .status(HTTP_STATUS.OK)
+        .send(apiSuccessResponse(data.message, data.data));
+    }
+    logger.verbose(
+      `Handling Completed With Error On ${req.method} ${req.url} Route`
+    );
+    return res
+      .status(HTTP_STATUS.OK)
+      .send(apiFailResponse(data.message, {}, data.code));
+  } catch (error) {
+    logger.verbose(
+      `Handling Completed With Error On ${req.method} ${req.url} Route`
+    );
+    logger.error(
+      `Error in calling ${moduleName} list service.
+              Error:: ${error}
+              Trace:: ${error.stack}`
+    );
+    return res.status(HTTP_STATUS.OK).send(
+      apiFailResponse(
+        `Something went wrong, please try again later.
+                Error:: ${error}`,
+        {},
+        HTTP_STATUS.INTERNAL_SERVER_ERROR
+      )
+    );
+  }
+};
+
+const updateEmployeeRating = async (req, res) => {
+  logger.verbose(`Handling ${req.method} ${req.url} Route`);
+  try {
+    const data = await service.updateEmployeeRating({
+      ...(req.params || {}),
+      ...(req.body || {}),
+      ...(req.session || {}),
+    });
+    if (data && !data.hasError) {
+      logger.verbose(
+        `Handling Completed With Success On ${req.method} ${req.url} Route`
+      );
+      return res
+        .status(HTTP_STATUS.OK)
+        .send(apiSuccessResponse(data.message, data.item));
+    }
+    logger.verbose(
+      `Handling Completed With Error On ${req.method} ${req.url} Route`
+    );
+    return res
+      .status(HTTP_STATUS.OK)
+      .send(apiFailResponse(data.message, {}, data.code));
+  } catch (error) {
+    logger.verbose(
+      `Handling Completed With Error On ${req.method} ${req.url} Route`
+    );
+    logger.error(
+      `Error in calling ${moduleName} list service.
+        Error:: ${error}
+        Trace:: ${error.stack}`
+    );
+    return res.status(HTTP_STATUS.OK).send(
+      apiFailResponse(
+        `Something went wrong, please try again later.
+            Error:: ${error}`,
+        {},
+        HTTP_STATUS.INTERNAL_SERVER_ERROR
+      )
+    );
+  }
+};
+
+module.exports = {
+  employeeRatingList,
+  updateEmployeeRating,
+};
