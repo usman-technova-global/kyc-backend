@@ -9,7 +9,11 @@ function appCustomerRoutes(fastify, options, done) {
     appCustomerController.createCustomer
   );
 
-
+  fastify.get(
+    '/list',
+    appCustomerSwagger.getCustomerList,
+    appCustomerController.getCustomerList
+  );
   done();
 }
 
