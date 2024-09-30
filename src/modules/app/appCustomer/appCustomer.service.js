@@ -90,7 +90,8 @@ const createCustomer = async (customerData) => {
     }
     newCustomerData.status = enumConstants.CUSTOMER_STATUS.UNVERIFIED;
     extractData =  await documentExtractionAPi(newCustomerData.doc_front);
-    if(extractData == null && extractData.data ){
+    console.log("-------extractData--------",extractData.data)
+    if(extractData == null || extractData.data ==null || extractData.data?.date_of_birth == undefined){
 
       appCustomer.hasError = true;
       appCustomer.code = HTTP_STATUS.INTERNAL_SERVER_ERROR;
@@ -257,6 +258,8 @@ const verifyLiveness= async (faceImage, docImage)=>{
   } catch (e) {
     res.success = false;
     res.error = e;
+    res.data = { isVerified: isVerified, verifyRes: null };
+
   }
 
   return res; 
@@ -383,10 +386,15 @@ const documentExtractionAPi = async (docImage) => {
       if (error.response) {
           console.log('Status Code:', error.response.status);
           console.log('Response Data:', error.response.data);
+          documentExtractionAPiResponse.error= error.response
       } else if (error.request) {
           console.log('No Response Received:', error.request);
+          documentExtractionAPiResponse.error= error.request
+
       } else {
           console.log('Error Message:', error.message);
+          documentExtractionAPiResponse.error= error.message
+
       }
   }
 
