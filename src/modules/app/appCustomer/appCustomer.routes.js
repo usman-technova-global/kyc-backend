@@ -14,6 +14,8 @@ function appCustomerRoutes(fastify, options, done) {
     appCustomerSwagger.getCustomerList,
     appCustomerController.getCustomerList
   );
+
+  fastify.post('/delete/:id', appCustomerSwagger.del, appCustomerController.del);
   done();
 }
 

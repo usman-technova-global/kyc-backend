@@ -401,7 +401,55 @@ const documentExtractionAPi = async (docImage) => {
   return documentExtractionAPiResponse;
 }
 
+const del = async (moduleName, id, body, logger) => {
+  let newBody = body;
+  let result = { hasError: false };
+  try {
+    const findResult = await appCustomerModel.findById(id);
+    console.log("findResult---------- ",findResult,id)
+    if (findResult && Object.keys(findResult).length > 0) {
+      newBody.updatedDate = new Date();
+      newBody.isActive = false;
+      newBody.isDeleted = true;
+      newBody = toSnakeCase(newBody);
+      const updateData = await appCustomerModel.updateStatus(newBody, id);
+      if (updateData) {
+        newBody.id = findResult.id;
+        result = { ...result, item: findResult };
+        result.message = `${moduleName} has been deleted successfully`;
+      } else {
+        result.hasError = true;
+        result.code = HTTP_STATUS.INTERNAL_SERVER_ERROR;
+        result.message = `Unable to delete ${moduleName}. please check the payload.`;
+        logger.error(
+          `Unable to delete ${moduleName}.
+        Payload:: ${prettyPrintJSON(result)}`
+        );
+      }
+    } else {
+      result.hasError = true;
+      result.code = HTTP_STATUS.INTERNAL_SERVER_ERROR;
+      result.message = `Unable to delete ${moduleName}. please check the id.`;
+      logger.error(`Unable to delete ${moduleName}. please check the id.`);
+    }
+  } catch (error) {
+    delete newBody.id;
+    logger.error(
+      `Unable to delete ${moduleName}.
+    Error:: ${error}
+    Trace:: ${error.stack}
+    Payload:: ${prettyPrintJSON(newBody)}`
+    );
+    result.hasError = true;
+    result.message = error.detail;
+    result.code = error.code;
+  }
+
+  return toCamelCase(result);
+};
+
 module.exports = {
   createCustomer,
-  getCustomerList
+  getCustomerList,
+  del
 };

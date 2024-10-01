@@ -99,7 +99,8 @@ const insecureRoute = [
   'api/v1/app/appointment/service/category/item',
   'api/v1/app/appointment/pay-fast/access-token',
   'api/v1/app/customer/create',
-  'api/v1/app/customer/list'
+  'api/v1/app/customer/list',
+  'api/v1/app/customer/delete'
 ];
 function secure(fastify) {
   fastify.addHook('preValidation', async (request, reply) => {

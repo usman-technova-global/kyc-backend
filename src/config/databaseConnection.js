@@ -13,9 +13,9 @@ const connection = {
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DATABASE,
-  // ssl: {
-  //   rejectUnauthorized: true,
-  // },
+  ssl: {
+    rejectUnauthorized: false,
+  },
   debug: true, // Enable debug mode to see SQL queries and connection info
 };
 if (!knexConnection) {

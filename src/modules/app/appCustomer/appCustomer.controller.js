@@ -104,7 +104,48 @@ async function getCustomerList(req, res) {
     );
   }
 }
+
+
+const del = async (req, res) => {
+  logger.verbose(`Handling ${req.method} ${req.url} Route`);
+  try {
+    const data = await appCustomerService.del(MODULE.CUSTOMER, req.params.id, req.body, logger);
+    if (data && !data.hasError) {
+      logger.verbose(
+        `Handling Completed With Success On ${req.method} ${req.url} Route`
+      );
+      return res
+        .status(HTTP_STATUS.OK)
+        .send(apiSuccessResponse(data.message, data.item));
+    }
+    logger.verbose(
+      `Handling Completed With Error On ${req.method} ${req.url} Route`
+    );
+    return res
+      .status(HTTP_STATUS.OK)
+      .send(apiFailResponse(data.message, {}, data.code));
+  } catch (error) {
+    logger.verbose(
+      `Handling Completed With Error On ${req.method} ${req.url} Route`
+    );
+    logger.error(
+      `Error in calling ${MODULE.CUSTOMER} update service.
+      Error:: ${error}
+      Trace:: ${error.stack}`
+    );
+    return res.status(HTTP_STATUS.OK).send(
+      apiFailResponse(
+        `Something went wrong, please try again later.
+        Error:: ${error}`,
+        {},
+        HTTP_STATUS.INTERNAL_SERVER_ERROR
+      )
+    );
+  }
+};
+
 module.exports = {
   createCustomer,
   getCustomerList,
+  del,
 };

@@ -49,7 +49,7 @@ const swagger = {
 
   getCustomerList: {
     schema: {
-      description: 'this will fetch user orders',
+      description: 'this will fetch customers',
       tags: ['app|Customer'],
       summary: 'fetch customer',
       querystring: {
@@ -71,7 +71,45 @@ const swagger = {
 
     },
   },
+  del: {
+    schema: {
+      description: 'this will delete customer',
+      tags: ['app|Customer'],
+      summary: 'delete Customer',
+      params: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Customer ID',
+          },
+        },
+        required: ['id'],
+        additionalProperties: false,
+      },
+      body: {
+        type: 'object',
+        properties: {
+          updatedBy: { type: 'string', format: 'uuid', description: 'user ID' },
+          tenant: { type: 'string' ,default : '0ff1d8ac-c1df-4ffe-9f3f-215e4fd3993e'},
 
+        },
+        required: ['updatedBy'],
+        additionalProperties: false,
+        
+      },
+      // headers: {
+      //   type: 'object',
+      //   properties: {
+      //     Authorization: { type: 'string' },
+      //   },
+      //   required: ['Authorization'],
+      // },
+
+
+    },
+  },
 
 };
 

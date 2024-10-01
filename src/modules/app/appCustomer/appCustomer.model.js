@@ -2,10 +2,21 @@ const knex = require('../../../config/databaseConnection');
 const MODULE = require('../../../utils/constants/moduleNames');
 const { promiseHandler } = require('../../../utils/commonUtils/promiseHandler');
 const HTTP_STATUS = require('../../../utils/constants/httpStatus');
+const { validate: isUUID } = require('uuid');
+
 
 const createCustomer = async (customerData) => knex(MODULE.CUSTOMER).insert(customerData);
 const findByIdNoAndStatus = async (idno, status) =>
-  knex(MODULE.CUSTOMER).where({ id_no: idno, status: status }).first();
+  knex(MODULE.CUSTOMER).where({ id_no: idno, status: status, is_deleted: false}).first();
+const findById = async (id)=>{
+  if (!isUUID(id)) {
+    throw new Error('Invalid UUID format');
+  }
+  return knex.select('*').from(MODULE.CUSTOMER).where('id', id).first();
+}
+
+const updateStatus = (data, id) =>
+  knex(MODULE.CUSTOMER).update(data).where('id', id);
 
 // Assuming you have the necessary imports and knex setup
 
@@ -17,7 +28,7 @@ const getCustomerList = async (custData) => {
     .orderBy('created_date', 'desc')
     .offset(custData.offset)
     .limit(custData.limit);
-
+    customersQuery = customersQuery.andWhere('is_deleted', false); 
   // Filter by verified/unverified if applicable
   console.log("----custData.isVerified---print----",custData.is_verified)
 
@@ -37,6 +48,8 @@ const getCustomerList = async (custData) => {
   const totalCustomersQuery = knex
     .count('* as total')
     .from(MODULE.CUSTOMER);
+
+    totalCustomersQuery.andWhere('is_deleted', false); 
 
   // Apply the same filters to total count query for consistency
   if (custData.is_verified !== undefined) {
@@ -74,8 +87,11 @@ const newCustomers = customers.map(item => {
 };
 
 
+
 module.exports = {
   createCustomer,
   findByIdNoAndStatus,
-  getCustomerList
+  getCustomerList,
+  findById,
+  updateStatus
 };
