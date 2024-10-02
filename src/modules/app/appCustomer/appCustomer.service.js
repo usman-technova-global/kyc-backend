@@ -242,7 +242,7 @@ const verifyLiveness= async (faceImage, docImage)=>{
   console.log("verifyRes------------------", verifyRes)
   try {
     if (verifyRes.success == true) {
-      if (!verifyRes.data[0]['opencv_VGG-Face'].verified && !verifyRes.data[0]['opencv_ArcFace'].verified) {
+      if (!verifyRes.data[0]['yolov8_VGG-Face'].verified && !verifyRes.data[0]['yolov8_ArcFace'].verified) {
         isVerified = false;
       } else {
         isVerified = true;
