@@ -4,6 +4,7 @@ const appCustomerService = require('./appCustomer.service');
 const {
   apiFailResponse,
   apiSuccessResponse,
+  apiSuccessResponse1
 } = require('../../../utils/commonUtil');
 const HTTP_STATUS = require('../../../utils/constants/httpStatus');
 const path = require('path');
@@ -14,7 +15,7 @@ const createCustomer = async (req, res) => {
   // delete req.body.doc_front
   // delete req.body.image
   // delete req.body.tenant
-
+ // console.log("---------req.files['doc_front'][0];---------", req.files['doc_front'])
 
   const filePath = path.join(__dirname, 'uploads', req.body.image.filename);
 
@@ -26,16 +27,18 @@ const createCustomer = async (req, res) => {
       logger.verbose(
         `Handling Completed With Success On ${req.method} ${req.url} Route`
       );
+
+      console.log("--data.errors---------",data.errors)
       return res
         .status(HTTP_STATUS.OK)
-        .send(apiSuccessResponse(data.message, data.customer));
+        .send(apiSuccessResponse1(data.message,data.errors, data.customer));
     }
     logger.verbose(
       `Handling Completed With Error On ${req.method} ${req.url} Route`
     );
     return res
       .status(HTTP_STATUS.OK)
-      .send(apiFailResponse(data.message, {}, data.code));
+      .send(apiSuccessResponse1(data.message, data.errors, data.code));
   } catch (error) {
     logger.verbose(
       `Handling Completed With Error On ${req.method} ${req.url} Route`

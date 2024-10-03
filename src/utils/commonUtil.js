@@ -34,6 +34,14 @@ const apiSuccessResponse = (message, obj) => ({
   data: obj,
 });
 
+const apiSuccessResponse1 = (message, errors, obj) => ({
+  success: true,
+  code: HTTP_STATUS.OK,
+  message,
+  errors: errors,
+  data: obj,
+});
+
 const apiFailResponse = (message, obj, code = HTTP_STATUS.BAD_REQUEST) => ({
   success: false,
   code,
@@ -119,6 +127,7 @@ module.exports = {
   notNull,
   apiResponse,
   apiSuccessResponse,
+  apiSuccessResponse1,
   apiFailResponse,
   DOMAIN_PREFIX,
   EMPLOYEE_ROLE_NAME,

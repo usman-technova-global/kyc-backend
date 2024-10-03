@@ -43,7 +43,11 @@ const createCustomer = async (customerData) => {
     const faceImage = newCustomerData.image;
      console.log("--------facepath-------",customerData.image)
 
+     const faceImg_base64 = customerData.image.buffer.toString('base64');
+     const docFront_base64 = customerData.doc_front.buffer.toString('base64');
+   
 
+     // Output the Base64 string
 
 
    //images upload
@@ -51,6 +55,7 @@ const createCustomer = async (customerData) => {
     const docFrontImg = await uploadImageDoc(newCustomerData.doc_front );
     delete newCustomerData.doc_front;
     newCustomerData.doc_front = docFrontImg.Location;
+   // console.log("base 64------------------ ",newCustomerData.doc_front.buffer.toString('base64'));
   
   }else{
     newCustomerData.doc_front = null;
@@ -77,66 +82,41 @@ const createCustomer = async (customerData) => {
   
   }  
     
-  // const faceImagePath = path.join(__dirname, 'uploads', faceImage.filename);
-  // const docFrontPath = path.join(__dirname, 'uploads', docFront.filename);
-  let extractData  = null; 
-   let verifyLivenessRes =  await  verifyLiveness(newCustomerData.image,newCustomerData.doc_front)
-   if(!verifyLivenessRes.data.isVerified){
-       appCustomer.hasError = true;
-       appCustomer.code = HTTP_STATUS.INTERNAL_SERVER_ERROR;
-       appCustomer.message = `Unable to create your Customer, please check your image verification.`;
+
    
-       return toCamelCase(appCustomer);
-    }
-    newCustomerData.status = enumConstants.CUSTOMER_STATUS.UNVERIFIED;
-    extractData =  await documentExtractionAPi(newCustomerData.doc_front);
-    console.log("-------extractData--------",extractData.data)
-    if(extractData == null || extractData.data ==null || extractData.data?.date_of_birth == undefined){
 
-      appCustomer.hasError = true;
-      appCustomer.code = HTTP_STATUS.INTERNAL_SERVER_ERROR;
-      appCustomer.message = `Unable to extraction.`;
-  
-     return toCamelCase(appCustomer);
-    }
-   const dateOfBirth =  dateUtil.extractDateFromYYMMDD(extractData.data.date_of_birth);
-   const expirayDate =  dateUtil.expirayDateYYMMDD(extractData.data.expiration_date);
-   const issueDate =  dateUtil.addDays(dateUtil.getPreviousDateByYears(expirayDate, 10),1);
-   console.log("---------expirayDate------------",expirayDate);
-   console.log("---------issueDate------------",issueDate);
+    let extract_data = await idscanByAnalyzer(faceImg_base64, docFront_base64);
 
+    console.log("----extract_data------",extract_data)
 
-
-  //  if(expirayDate < new Date()){
-  //   appCustomer.hasError = true;
-  //   appCustomer.code = HTTP_STATUS.BAD_REQUEST;
-  //   appCustomer.message = `your card has been expired.`;
-
-  //   return toCamelCase(appCustomer);
-  //  }
 
       //set object values
-      newCustomerData.full_name = extractData.data.names;
-      newCustomerData.sur_name = extractData.data.surname;
-      newCustomerData.country = extractData.data.country;
-      newCustomerData.dob   = dateOfBirth;
-      newCustomerData.expiry_date  = expirayDate;
-      newCustomerData.issue_date  = issueDate;
-      newCustomerData.gender  = extractData.data.sex;
-      newCustomerData.nationality = extractData.data.nationality;
-      newCustomerData.id_no  = extractData.data.number;
-      newCustomerData.score = extractData.data.valid_score;
+      newCustomerData.full_name = extract_data.fullName;
+      newCustomerData.sur_name = extract_data.fullName;
+      newCustomerData.country = extract_data.nationality;
+      newCustomerData.dob   = extract_data.dob;
+      newCustomerData.expiry_date  = extract_data.expiryDate;
+      newCustomerData.issue_date  = extract_data.issuedate; //
+      newCustomerData.gender  = extract_data.gender;
+      newCustomerData.nationality = extract_data.nationality;
+      newCustomerData.id_no  = extract_data.documentNumber;
+      //newCustomerData.score = extractData.data.valid_score;
       newCustomerData.doctype = "Passport";
-      newCustomerData.imagelivenessresponse = verifyLivenessRes.data;
-      newCustomerData.dataextractionresponse = extractData.data;
+      //newCustomerData.imagelivenessresponse = verifyLivenessRes.data;
+      newCustomerData.dataextractionresponse = extract_data;
       newCustomerData.is_active = true;
-      newCustomerData.status = enumConstants.CUSTOMER_STATUS.VERIFIED;
+
+      newCustomerData.status =  extract_data?.documentWarnings.length > 0 ? enumConstants.CUSTOMER_STATUS.UNVERIFIED:enumConstants.CUSTOMER_STATUS.VERIFIED
 
       const findCustomer = await appCustomerModel.findByIdNoAndStatus(newCustomerData.id_no, newCustomerData.status)
+
       if(findCustomer){
        appCustomer.hasError = true;
        appCustomer.code = HTTP_STATUS.INTERNAL_SERVER_ERROR;
        appCustomer.message = `Customer ID No is already exist.`;
+       appCustomer.errors = extract_data?.documentWarnings.length > 0 ? extract_data?.documentWarnings: null;
+
+       console.log("---appCustomer.errors-----",toCamelCase(appCustomer))
        logger.error(`Customer ID No is already exist.`);
        return toCamelCase(appCustomer);
       }
@@ -148,10 +128,14 @@ const createCustomer = async (customerData) => {
       delete newCustomerData.imagelivenessresponse ;
       delete newCustomerData.dataextractionresponse
       appCustomer = { ...appCustomer, customer: newCustomerData };
+      appCustomer.errors = extract_data?.documentWarnings.length > 0 ? extract_data?.documentWarnings: null;
+
       appCustomer.message = `Your customer has been created successfully.`;
     } else {
       appCustomer.hasError = true;
       appCustomer.code = HTTP_STATUS.INTERNAL_SERVER_ERROR;
+      appCustomer.errors = extract_data?.documentWarnings.length > 0 ? extract_data?.documentWarnings: null;
+
       appCustomer.message = `Unable to create your Customer, please check the payload.`;
       logger.error(
         `Unable to create ${MODULE.CUSTOMER}.
@@ -223,6 +207,73 @@ async function getCustomerList(custData) {
 //   }
 // }
 
+const idscanByAnalyzer = async (faceImg_base64, docFront_base64)=>{
+  let data = JSON.stringify({
+    "document": docFront_base64,
+    "face": faceImg_base64,
+    "profile": "security_medium"
+  });
+  
+  let config = {
+    method: 'post',
+    maxBodyLength: Infinity,
+    url: process.env.IDSCAN_API,
+    headers: { 
+      'X-API-KEY': process.env.IDSCAN_API_KEY, 
+      'accept': 'application/json', 
+      'content-type': 'application/json', 
+      'Cookie': '__cflb=02DiuHwYc6VyiTumT63i15CDbKHcN2XqvA3fGiWMrTYZA'
+    },
+    data: data // Ensure 'data' is defined or passed correctly
+  };
+  
+  try {
+    const response = await axios.request(config);
+    let extract_data = mapDocumentData(response.data);
+    console.log(JSON.stringify(extract_data));
+    return extract_data;
+  } catch (error) {
+    console.error('Error fetching data:', error);
+  }  
+
+  
+}
+  // Function to map key-value pairs
+  function mapDocumentData(responseData) {
+    if (responseData.success) {
+        const data = responseData.data;
+        console.log("response----------", data);
+
+        // Mapping the key-value pairs with safer checks
+        const mappedData = {
+            fullName: (data.fullName && data.fullName[0]?.value) || 'N/A',
+            address: (data.address1 && data.address1[0]?.value) || 'N/A',
+            dob: (data.dob && data.dob[0]?.value) || 'N/A',
+            documentNumber: (data.documentNumber && data.documentNumber[0]?.value) || 'N/A',
+            issuedate: (data.issued && data.issued[0]?.value) || 'N/A',
+            expiryDate: (data.expiry && data.expiry[0]?.value) || 'N/A',
+            gender: (data.sex && data.sex[0]?.value) || 'N/A',
+            nationality: (data.nationalityIso2 && data.nationalityIso2[0]?.value) || 'N/A',
+            documentWarnings: (responseData.warning || []).map(w => ({
+                code: w.code,
+                description: w.description,
+                severity: w.severity,
+                decision: w.decision
+            }))
+        };
+
+        // Filtering high-severity rejects
+        mappedData.documentWarnings = mappedData.documentWarnings.filter(warning => 
+            warning.decision === "reject" && warning.severity === "high"
+        );
+
+
+        return mappedData;
+    } else {
+        return { error: "Failed to extract document data." };
+    }
+}
+
 const uploadImageDoc = async (file)=>{
   const fileData = {
     Key: `docs/${uuidv4()}-${file.filename}`,
@@ -231,174 +282,6 @@ const uploadImageDoc = async (file)=>{
   };
   const img = await uploader.uploadToAdminBucket(fileData);
 return img;
-}
-
-
-const verifyLiveness= async (faceImage, docImage)=>{
-
-  let isVerified = false;
-  let verifyRes = await verifyLivenessAPi(faceImage, docImage)
-  let res = {};
-  console.log("verifyRes------------------", verifyRes)
-  try {
-    if (verifyRes.success == true) {
-      if (!verifyRes.data[0]['yolov8_VGG-Face'].verified && !verifyRes.data[0]['yolov8_ArcFace'].verified) {
-        isVerified = false;
-      } else {
-        isVerified = true;
-      }
-      console.log("isverified++++++++4++++++++++ ", isVerified)
-    } else {
-
-    }
-
-    res.success = false;
-    res.data = { isVerified: isVerified, verifyRes: verifyRes.data };
-    return res;
-  } catch (e) {
-    res.success = false;
-    res.error = e;
-    res.data = { isVerified: isVerified, verifyRes: null };
-
-  }
-
-  return res; 
-
-}
-
-const verifyLivenessAPi = async (faceImage, docImage)=>{
-
- // console.log("-------------faceImage--------------",faceImage)
-  //console.log("-------------docImage--------------",docImage)
-  let verifyLivenessAPiResponse = {  };
-
-  const faceImageResponse = await axios({
-    method: 'get',
-    url: faceImage,
-    responseType: 'stream'  // Ensures the response is a stream
-  });
-
-// Fetch the second file from S3
-const docImageResponse = await axios({
-    method: 'get',
-    url: docImage,
-    responseType: 'stream'  // Ensures the response is a stream
- });
-
-//console.log("docImage-----------Response-----",docImageResponse)
-
-  let data = new FormData();
-  data.append('customerIdCard',docImageResponse.data, {
-    filename: 'docImage.jpg',
-    contentType: docImageResponse.headers['content-type']  // Set the correct content type
-   });
-   console.log("docImage-----------Response-----",docImageResponse.headers['content-type'] )
-
-  data.append('customerImage',faceImageResponse.data, {
-    filename: 'faceImage.jpg',
-    contentType: faceImageResponse.headers['content-type']  // Set the correct content type
-   });
-
-  // Axios POST request with the form-data
-await axios.post(process.env.PYTHON_API_ENDPOINT+'/py/verify', data, {
-  headers: {
-      ...data.getHeaders()  // This includes the correct form-data headers
-  }
-})
-.then(response => {
-  console.log('Success:', response.data);
-  verifyLivenessAPiResponse.success = true;
-  verifyLivenessAPiResponse.data = response.data;
-})
-.catch(error => {
-  console.error('Error:', error);
-  verifyLivenessAPiResponse.success = false;
-  verifyLivenessAPiResponse.error = error;
-});
-
-return verifyLivenessAPiResponse;
-}
-
-
-
-const documentExtractionAPi = async (docImage) => {
-  let documentExtractionAPiResponse = {};
-
-  try {
-      // Fetch the image file from S3
-      const docImageResponse = await axios({
-          method: 'get',
-          url: docImage,
-          responseType: 'stream'  // Ensures the response is a stream
-      });
-
-      const extension = path.extname(docImage).toLowerCase();
-
-      let contentType;
-      switch (extension) {
-          case '.jpg':
-          case '.jpeg':
-              contentType = 'image/jpeg';
-              break;
-          case '.png':
-              contentType = 'image/png';
-              break;
-          case '.gif':
-              contentType = 'image/gif';
-              break;
-          default:
-              contentType = 'application/octet-stream';  // Fallback, but this may not work
-      }
-
-      // Log the content type for debugging
-      console.log("Manually Set Content-Type:", contentType);
-
-      // Log the content type of the image
-      console.log("docImage-----------Response Content-Type-----", docImageResponse.headers['content-type']);
-
-      // Determine the filename and ensure it matches the MIME type
-      const filename = docImageResponse.headers['content-type'] === 'image/png' ? 'docImage.png' : 'docImage.jpg';
-
-      // Create FormData object
-      let data = new FormData();
-      data.append('idCardImage', docImageResponse.data, {
-          filename: filename,
-          contentType: contentType  // Set the correct content type
-      });
-
-      // Log FormData headers to verify
-      // console.log("FormData Headers:", data.getHeaders());
-
-      // Axios POST request with the form-data
-      const response = await axios.post(process.env.PYTHON_API_ENDPOINT + '/py/extractText_fromImages_with_passporteye', data, {
-          headers: {
-              ...data.getHeaders()  // This includes the correct form-data headers
-          }
-      });
-
-      console.log('Success:', response.data);
-      documentExtractionAPiResponse.success = true;
-      documentExtractionAPiResponse.data = response.data;
-  } catch (error) {
-      documentExtractionAPiResponse.success = false;
-      documentExtractionAPiResponse.error = error;
-
-      if (error.response) {
-          console.log('Status Code:', error.response.status);
-          console.log('Response Data:', error.response.data);
-          documentExtractionAPiResponse.error= error.response
-      } else if (error.request) {
-          console.log('No Response Received:', error.request);
-          documentExtractionAPiResponse.error= error.request
-
-      } else {
-          console.log('Error Message:', error.message);
-          documentExtractionAPiResponse.error= error.message
-
-      }
-  }
-
-  return documentExtractionAPiResponse;
 }
 
 const del = async (moduleName, id, body, logger) => {
